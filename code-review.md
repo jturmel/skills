@@ -1,0 +1,1 @@
+../../../dev/jturmel/dotfiles/opencode/.config/opencode/skills/code-review.md
