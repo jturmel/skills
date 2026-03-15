@@ -28,6 +28,7 @@ show options (MIT, GPLv3, other), or skip if proprietary.
   - Replace the default setup of `settings.py` with a `settings` module that has a `base.py` in it that then the other
 configurations will import and can override specific settings as needed. Then when Django is started, the specific
 configuration file (e.g. `dev.py`) is what is set as the DJANGO_SETTINGS_MODULE
+- Python to be managed by `uv`
 
 ## CI/CD
 
