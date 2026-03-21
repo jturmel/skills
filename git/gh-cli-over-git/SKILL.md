@@ -1,5 +1,5 @@
 ---
-name: prefer-gh-over-git
+name: gh-cli-over-git
 description: Prefer GitHub CLI over raw git commands for GitHub-related workflows.
 ---
 

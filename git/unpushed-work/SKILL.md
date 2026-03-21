@@ -1,5 +1,5 @@
 ---
-name: orphaned-work-audit
+name: unpushed-work
 description: Audit local branches and .worktrees checkouts to find work that has not been pushed to origin or merged, then present a clear list of branches or detached commits that exist only on the local machine.
 ---
 
