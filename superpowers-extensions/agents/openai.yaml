@@ -1,0 +1,3 @@
+interface:
+  display_name: "Superpowers Extensions"
+  short_description: "Keep superpowers project context (.context/features, specs, specs-plans) current"
