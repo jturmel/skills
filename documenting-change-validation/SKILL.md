@@ -59,6 +59,10 @@ Use `### Manual QA` for reproducible steps and expected results; use `## Visual 
 - For native mobile changes with local development, run the app and capture the affected screen or flow; repeat in dark mode when supported.
 - If visual proof does not apply or an applicable capture cannot be produced, say so explicitly and give the reason.
 
+## GitHub PR visual proof
+
+For GitHub PRs with screenshots, follow [GitHub PR visual proof](references/github-pr-visual-proof.md); otherwise use the generic format.
+
 ## Updates
 
 When updating a request, replace stale `Automated`, `Manual QA`, and `Visual Proof` content while preserving everything else. Keep requirements from other skills.
