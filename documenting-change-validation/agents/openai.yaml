@@ -1,4 +1,4 @@
 interface:
   display_name: "Documenting Change Validation"
-  short_description: "Keep pull/merge request testing guidance accurate"
-  default_prompt: "Maintain the How to Test section for this pull/merge request."
+  short_description: "Keep pull/merge request test and visual proof guidance accurate"
+  default_prompt: "Maintain the How to Test and Visual Proof sections for this pull/merge request."
