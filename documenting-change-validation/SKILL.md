@@ -47,16 +47,17 @@ Keep guidance specific to the diff. Inspect further or ask the user instead of f
 
 Keep `## Visual Proof` separate from `## How to Test`. Attach or link only screenshots actually captured during the current work.
 
-Use `### Manual QA` for reproducible steps and expected results; use `## Visual Proof` for screenshot entries. Add each captured artifact under `## Visual Proof` in this form:
+Use `### Manual QA` for steps and expected results; use `## Visual Proof` for each artifact:
 
 ```markdown
 - <surface> — <viewport/device> — <theme> — <mode>: <link or attachment>
 ```
 
-- For web UI changes, capture mobile, tablet, and desktop widths. Use documented breakpoints when available; otherwise choose representative widths and label their CSS-pixel values.
+- To capture proof, use the repository's supported local runner and load, generate, or recreate the minimum safe fixtures/state needed to reproduce the changed surface—even after implementation scaffolding was removed. Clean up temporary local setup when appropriate.
+- For web UI changes, capture mobile, tablet, and desktop. Use documented breakpoints or label representative CSS-pixel widths.
 - When dark mode is supported, capture the same views in dark mode.
-- For print CSS or output, emulate print media and capture a near-A4 or Letter result at the intended orientation.
-- For native mobile changes with local development, run the app and capture the affected screen or flow; repeat in dark mode when supported.
+- For print changes, emulate print media and capture near-A4 or Letter at the intended orientation.
+- For native changes with local development, run the app and capture the affected surface; repeat in dark mode when supported.
 - If visual proof does not apply or an applicable capture cannot be produced, say so explicitly and give the reason.
 
 ## GitHub PR visual proof
@@ -65,6 +66,6 @@ For GitHub PRs with screenshots, follow [GitHub PR visual proof](references/gith
 
 ## Updates
 
-When updating a request, replace stale `Automated`, `Manual QA`, and `Visual Proof` content while preserving everything else. Keep requirements from other skills.
+On update, replace stale `Automated`, `Manual QA`, and `Visual Proof` content; preserve other content and requirements.
 
-Do not assume GitHub, GitLab, Bitbucket, or any specific CLI. The active platform skill performs the request operation; this skill supplies the testing content or a ready-to-paste section when direct body editing is unavailable.
+Do not assume a platform or CLI. The active platform skill handles request operations; this skill supplies testing content or a ready-to-paste section.
