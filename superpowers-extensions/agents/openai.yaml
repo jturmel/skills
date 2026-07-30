@@ -1,3 +1,4 @@
 interface:
   display_name: "Superpowers Extensions"
-  short_description: "Keep superpowers project context (.context/features, specs, specs-plans) current"
+  short_description: "Keep agent context in plans-specs and plans"
+  default_prompt: "Use $superpowers-extensions to organize project context."

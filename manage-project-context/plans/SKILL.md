@@ -1,16 +1,12 @@
 ---
 name: manage-project-context-plans
-description: Must be used in conjunctions with superpowers writing-plans, just overrides where plans are saved.
+description: Must be used with superpowers writing-plans to save implementation plans in `.context/plans`.
 ---
 
 # Writing Plans Addendum
 
-## Overview
+When superpowers writing-plans produces an implementation plan, save it to:
 
-If the superpowers `writing-plans` skill is being used, then this skill needs to also be used.
-
-This overrides superpowers built-in plan location:
-**Save plans to:** `.context/plans/YYYY-MM-DD-<feature-name>.md`
+`.context/plans/YYYY-MM-DD-<feature-name>.md`
 
 The rest of the superpowers `writing-plans` skill applies, only the location to save the plans changes.
-
