@@ -16,12 +16,14 @@ Ensure the body contains these sections and headings:
 
 ### Automated
 
-### Manual QA
+### Manual QA for Engineering
+
+### Manual QA for Product Owners
 
 ## Visual Proof
 ```
 
-Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add either missing section without restructuring the body or creating duplicates.
+Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
 
 For every web or native UI change, `## Visual Proof` is required. It must contain the captured artifacts or an explicit reason they are unavailable.
 
@@ -37,17 +39,32 @@ Under `### Automated`:
 
 Prefer focused checks for the changed behavior, followed by broader checks when relevant.
 
-## Manual QA
+## Manual QA for Engineering
 
-Under `### Manual QA`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when manual testing genuinely does not apply.
+Under `### Manual QA for Engineering`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when engineering manual testing genuinely does not apply.
 
 Keep guidance specific to the diff. Inspect further or ask the user instead of fabricating coverage.
+
+## Manual QA for Product Owners
+
+Under `### Manual QA for Product Owners`, give numbered, user-facing acceptance steps with expected outcomes. Exclude engineering-only setup details; link back to the engineering section when product-owner verification depends on a prepared environment.
+
+Keep acceptance guidance specific to the changed user experience. Explain when product-owner QA genuinely does not apply.
+
+## Commit Hygiene
+
+When the PR history contains extraneous, fixup, or fragmented commits, review the changes and group them into a small, reviewable set of logical commits.
+
+- Keep independently understandable changes separate when that makes review clearer.
+- Combine incremental or mechanical commits that do not represent a meaningful review boundary.
+- Do not squash everything into one commit merely for fewer commits, and do not combine changes that should remain distinct.
+- Before rewriting history, confirm the base branch and intended PR diff; afterward, verify the rewritten history preserves that diff.
 
 ## Visual Proof
 
 Keep `## Visual Proof` separate from `## How to Test`. Attach or link only screenshots actually captured during the current work.
 
-Use `### Manual QA` for steps and expected results; use `## Visual Proof` for each artifact:
+Use the appropriate Manual QA section for steps and expected results; use `## Visual Proof` for each artifact:
 
 ```markdown
 - <surface> — <viewport/device> — <theme> — <mode>: <link or attachment>
@@ -66,6 +83,6 @@ For GitHub PRs with screenshots, follow [GitHub PR visual proof](references/gith
 
 ## Updates
 
-On update, replace stale `Automated`, `Manual QA`, and `Visual Proof` content; preserve other content and requirements.
+On update, replace stale `Automated`, both Manual QA sections, and `Visual Proof` content; preserve other content and requirements.
 
 Do not assume a platform or CLI. The active platform skill handles request operations; this skill supplies testing content or a ready-to-paste section.
