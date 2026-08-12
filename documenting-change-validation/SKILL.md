@@ -7,6 +7,8 @@ description: Use when creating or updating a pull request, merge request, or equ
 
 Maintain accurate testing and visual-evidence content in a pull/merge request body. Work alongside the repository's Git or hosting-platform skills; do not replace their request-creation, update, or other body-content workflows.
 
+When creating or updating a pull/merge request, include its confirmed direct URL in the user-facing response. If the platform does not return or verify a URL, say that it is unavailable; never guess one.
+
 ## Required sections
 
 Ensure the body contains these sections and headings:
