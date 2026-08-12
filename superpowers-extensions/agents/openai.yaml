@@ -1,4 +1,4 @@
 interface:
   display_name: "Superpowers Extensions"
   short_description: "Keep agent context in plans-specs and plans"
-  default_prompt: "Use $superpowers-extensions to organize project context."
+  default_prompt: "Use $superpowers-extensions to organize project context and preserve separate spec and plan approval handoffs."
