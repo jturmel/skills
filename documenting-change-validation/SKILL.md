@@ -27,7 +27,7 @@ Ensure the body contains these sections and headings:
 
 Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
 
-For every web or native UI change, `## Visual Proof` is required. It must contain the captured artifacts or an explicit reason they are unavailable.
+For any change that changes what any user can see or do in the system—web, native mobile, desktop, email, PDF, print, or another user-facing surface—`## Visual Proof` is mandatory. It must contain captured artifacts for the affected surface, or a specific evidence-based explanation after a documented capture attempt. Do not treat a UI change as exempt because it is small, difficult to reproduce, lacks ready-made fixtures, or requires local setup.
 
 ## Automated
 
@@ -65,6 +65,17 @@ When the PR history contains extraneous, fixup, or fragmented commits, review th
 ## Visual Proof
 
 Keep `## Visual Proof` separate from `## How to Test`. Attach or link only screenshots actually captured during the current work.
+
+### Mandatory UI evidence
+
+If the diff changes UI for even one category of user, make a serious attempt to capture visual proof before writing the PR body. Do not take the lazy path of omitting screenshots or immediately claiming that proof is unavailable.
+
+- Use the repository's supported local development runner, browser/device tooling, or other documented preview path.
+- Reuse existing fixtures and application state when they cover the changed surface.
+- If they do not, create the smallest safe fixtures and state needed to reach the feature, role, data, loading, empty, error, authenticated, or other relevant view. Restore temporary scaffolding when practical, even if the implementation no longer needs it.
+- Capture the affected UI after reaching the real route or runtime path. A screenshot of an unrelated page, placeholder, failing setup screen, or source code is not visual proof.
+- Continue troubleshooting missing data, authentication, permissions, routing, or local-runner setup until the evidence attempt is genuinely blocked. Record the commands, state/fixture work, and concrete blocker if a capture still cannot be produced.
+- Never use "no fixtures," "too hard to run locally," "small CSS change," or similar convenience reasoning as the explanation for skipping an attempt.
 
 Use the appropriate Manual QA section for steps and expected results; use `## Visual Proof` for each artifact:
 
