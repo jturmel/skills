@@ -115,7 +115,7 @@ Keep `## ⚠️ High-Risk Items for Human Review` immediately before `## How to 
 Add one row for each distinct risk location. If the assessment finds no matching items, render the heading followed by:
 
 ```markdown
-*No high-risk architectural boundaries, API breaks, or query safety issues detected.*
+*No high-risk architectural boundaries, API breaks, query safety issues, or external-service reliability risks detected.*
 ```
 
 Do not omit the section, use repository-level links, or report category names without identifying the exact changed lines and why human sign-off is required.
