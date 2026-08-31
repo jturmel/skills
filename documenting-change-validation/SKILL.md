@@ -23,11 +23,15 @@ Ensure the body contains these sections and headings:
 ### Manual QA for Product Owners
 
 ## Visual Proof
+
+## ⚠️ High-Risk Items for Human Review
 ```
 
 Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
 
 For any change that changes what any user can see or do in the system—web, native mobile, desktop, email, PDF, print, or another user-facing surface—`## Visual Proof` is mandatory. It must contain captured artifacts for the affected surface, or a specific evidence-based explanation after a documented capture attempt. Do not treat a UI change as exempt because it is small, difficult to reproduce, lacks ready-made fixtures, or requires local setup.
+
+Before writing or updating the body, inspect the complete PR diff and follow [High-risk human review](references/high-risk-human-review.md). This assessment is mandatory for every change, even when no item is ultimately flagged.
 
 ## Automated
 
@@ -94,8 +98,30 @@ Use the appropriate Manual QA section for steps and expected results; use `## Vi
 
 For GitHub PRs with screenshots, follow [GitHub PR visual proof](references/github-pr-visual-proof.md); otherwise use the generic format.
 
+## High-Risk Items for Human Review
+
+Keep `## ⚠️ High-Risk Items for Human Review` immediately after `## Visual Proof`. Use this exact block when the assessment flags one or more items:
+
+```markdown
+## ⚠️ High-Risk Items for Human Review
+
+> Automated risk assessment flagged the following architectural or operational touchpoints for human verification.
+
+| Area | Severity | File & Location | Review Context / Risk |
+| :--- | :--- | :--- | :--- |
+| **[Category]** | [🚨 Critical / ⚠️ Warning / ℹ️ Notice] | [`filepath#Lline`](permalink) | [Concise description of the change and explicit risk context] |
+```
+
+Add one row for each distinct risk location. If the assessment finds no matching items, render the heading followed by:
+
+```markdown
+*No high-risk architectural boundaries, API breaks, or query safety issues detected.*
+```
+
+Do not omit the section, use repository-level links, or report category names without identifying the exact changed lines and why human sign-off is required.
+
 ## Updates
 
-On update, replace stale `Automated`, both Manual QA sections, and `Visual Proof` content; preserve other content and requirements.
+On update, replace stale `Automated`, both Manual QA sections, `Visual Proof`, and `High-Risk Items for Human Review` content; preserve other content and requirements.
 
 Do not assume a platform or CLI. The active platform skill handles request operations; this skill supplies testing content or a ready-to-paste section.

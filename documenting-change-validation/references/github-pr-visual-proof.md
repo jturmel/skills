@@ -22,4 +22,6 @@ Use this only for a GitHub pull request with captured screenshots.
 
 Keep `Size / platform` as the left header; use actual widths, device or platform names, and paper size in its rows. For native proof, use rows such as `iPhone 15 — iOS` or `Pixel 9 — Android`. Preserve unrelated PR-body content.
 
+Immediately after the completed `## Visual Proof` section, render the `## ⚠️ High-Risk Items for Human Review` block required by the main skill. The risk table's file links use immutable code blob permalinks; do not reuse screenshot asset URLs for code locations.
+
 GitHub documents relative repository image links for pull requests and comments, and supports Markdown tables in PR bodies: <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#images> and <https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-tables>.
