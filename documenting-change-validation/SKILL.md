@@ -14,6 +14,8 @@ When creating or updating a pull/merge request, include its confirmed direct URL
 Ensure the body contains these sections and headings:
 
 ```markdown
+## ⚠️ High-Risk Items for Human Review
+
 ## How to Test
 
 ### Automated
@@ -23,8 +25,6 @@ Ensure the body contains these sections and headings:
 ### Manual QA for Product Owners
 
 ## Visual Proof
-
-## ⚠️ High-Risk Items for Human Review
 ```
 
 Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
@@ -100,7 +100,7 @@ For GitHub PRs with screenshots, follow [GitHub PR visual proof](references/gith
 
 ## High-Risk Items for Human Review
 
-Keep `## ⚠️ High-Risk Items for Human Review` immediately after `## Visual Proof`. Use this exact block when the assessment flags one or more items:
+Keep `## ⚠️ High-Risk Items for Human Review` immediately before `## How to Test`. Use this exact block when the assessment flags one or more items:
 
 ```markdown
 ## ⚠️ High-Risk Items for Human Review
