@@ -107,9 +107,9 @@ Keep `## ⚠️ High-Risk Items for Human Review` immediately before `## How to 
 
 > Automated risk assessment flagged the following architectural or operational touchpoints for human verification.
 
-| Area | Severity | File & Location | Review Context / Risk |
-| :--- | :--- | :--- | :--- |
-| **[Category]** | [🚨 Critical / ⚠️ Warning / ℹ️ Notice] | [`filepath#Lline`](permalink) | [Concise description of the change and explicit risk context] |
+| Area | Severity | Review Context / Risk |
+| :--- | :--- | :--- |
+| **[Category]** | [🚨 Critical / ⚠️ Warning / ℹ️ Notice] | [`filename#Lline`](pr-diff-link)<br><br>[Concise description of the change and explicit risk context] |
 ```
 
 Add one row for each distinct risk location. If the assessment finds no matching items, render the heading followed by:
@@ -118,7 +118,7 @@ Add one row for each distinct risk location. If the assessment finds no matching
 *No high-risk architectural boundaries, API breaks, query safety issues, or external-service reliability risks detected.*
 ```
 
-Do not omit the section, use repository-level links, or report category names without identifying the exact changed lines and why human sign-off is required.
+In each review-context cell, show only the filename and changed line or range—never the full path—as the link label. Follow it with `<br><br>` so a blank line renders before the risk explanation. Do not omit the section, use blob or repository-file links, or report category names without identifying the exact changed lines and why human sign-off is required.
 
 ## Updates
 

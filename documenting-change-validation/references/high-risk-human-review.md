@@ -7,7 +7,7 @@ Use this assessment for every pull/merge request body created or updated with th
 1. Resolve the PR base and head SHA. Inspect the complete merge-base-to-head diff, including renamed files and deleted lines; do not assess only the latest commit or staged changes.
 2. Evaluate changed paths and changed code in all six categories below. Use repository context, types, schemas, routes, serializers, tests, and call sites to determine the change's meaning. Filename matching alone is insufficient.
 3. Create a separate row for each distinct risk location. Consolidate adjacent lines only when they represent one risk and share one review decision.
-4. Link the narrowest changed line range that supports the finding. Do not link an entire file when specific lines are available.
+4. Link the narrowest changed line range that supports the finding in the pull/merge request's changes view. Do not link an entire file when specific lines are available.
 5. State what changed and the concrete question a human must verify. Do not merely restate the category or severity.
 
 ## Mandatory trigger categories
@@ -44,17 +44,25 @@ Use **API Contracts & External Interfaces** for the contract this code publishes
 
 Do not require retries, circuit breakers, fallbacks, or asynchronous execution for every external call. Flag the concrete failure mode visible in the diff and ask the reviewer to verify the appropriate resilience strategy for that operation. Security issues such as credentials or PII exposure remain 🚨 Critical under **Security & Authorization** as well.
 
-## Permalinks
+## Review-UI links
 
-For GitHub, use immutable blob links to the exact modified lines:
+For GitHub, link to the exact lines in the pull request's **Files changed** view so the reviewer stays in the review UI. Use the actual URL provided by that view. Its shape is:
 
 ```text
-https://github.com/{owner}/{repo}/blob/{sha}/{filepath}#L{start_line}-L{end_line}
+https://github.com/{owner}/{repo}/pull/{pr_number}/files#diff-{file_anchor}R{start_line}-R{end_line}
 ```
 
-Use the head SHA for added or modified lines. For a risk represented only by deleted lines, use the base SHA and the deleted line range so the permalink resolves to the reviewed code. URL-encode the path when necessary. A single-line link can use `#L{line}`. If immutable repository metadata is unavailable, use the standard relative form `./{filepath}#L{start_line}-L{end_line}` and do not invent owner, repository, or SHA values.
+Use `R` anchors for added or modified lines and `L` anchors for deleted lines. A single-line link ends in `R{line}` or `L{line}`. `{file_anchor}` is the hosting platform's generated diff anchor: obtain it from the actual PR changes view rather than calculating, guessing, or fabricating it. For another hosting platform, use its equivalent line link in the merge request's diff or changes view.
 
-The link label should identify the location, for example ``[`src/users/query.ts#L42-L47`](https://github.com/acme/app/blob/abc123/src/users/query.ts#L42-L47)``.
+If the request does not exist yet, create it through the active platform workflow, resolve the real changes-view links, and immediately update the risk section before handoff. Never leave placeholder, blob, branch, or repository-file links in the final request body.
+
+In the table, combine the location and explanation in `Review Context / Risk`. The link label contains only the filename plus its changed line or range, not the directory path. Insert `<br><br>` after the link to render a blank line before the explanation:
+
+```markdown
+[`query.ts#L42-L47`](https://github.com/acme/app/pull/123/files#diff-<actual-file-anchor>R42-R47)<br><br>Query called inside loop—verify N+1 impact at production scale.
+```
+
+Use the full path only while resolving the correct file anchor; do not display it in the table. When different changed files share a filename, verify the target from the actual diff and use the category and risk explanation to disambiguate the rows without exposing the path in the label.
 
 ## Review context
 
