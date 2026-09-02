@@ -13,49 +13,70 @@ When creating or updating a pull/merge request, include its confirmed direct URL
 
 Ensure the body contains these sections and headings:
 
-```markdown
+````markdown
 ## ⚠️ High-Risk Items for Human Review
 
 ## How to Test
 
-### Automated
+<details>
+<summary><h3>Product Owner QA Instructions</h3></summary>
 
-### Manual QA for Engineering
-
-### Manual QA for Product Owners
-
-## Visual Proof
+```text
+[Numbered user-facing acceptance steps with expected outcomes]
 ```
 
-Match headings case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
+</details>
+
+<details>
+<summary><h3>Engineering QA Instructions</h3></summary>
+
+[Engineering prerequisites and numbered reproducible steps with expected results]
+
+</details>
+
+<details>
+<summary><h3>Automated Testing Instructions</h3></summary>
+
+[Exact commands, results, and what each command verifies]
+
+</details>
+
+## Visual Proof
+````
+
+Match headings and summary text case-insensitively. Preserve all other body content, including content added by other skills. Add missing sections without restructuring the body or creating duplicates.
+
+Each testing subsection must use `<details>` without the `open` attribute so it is collapsed by default. Put its exact `<h3>` heading inside `<summary>` to preserve the former `###` heading size. Keep a blank line between `</summary>` and the body and before `</details>` so GitHub renders the contents correctly.
 
 For any change that changes what any user can see or do in the system—web, native mobile, desktop, email, PDF, print, or another user-facing surface—`## Visual Proof` is mandatory. It must contain captured artifacts for the affected surface, or a specific evidence-based explanation after a documented capture attempt. Do not treat a UI change as exempt because it is small, difficult to reproduce, lacks ready-made fixtures, or requires local setup.
 
 Before writing or updating the body, inspect the complete PR diff and follow [High-risk human review](references/high-risk-human-review.md). This assessment is mandatory for every change, even when no item is ultimately flagged.
 
-## Automated
+## Product Owner QA Instructions
+
+Under `<summary><h3>Product Owner QA Instructions</h3></summary>`, give numbered, user-facing acceptance steps with expected outcomes. Exclude engineering-only setup details; link back to the engineering section when product-owner verification depends on a prepared environment.
+
+Wrap the complete Product Owner body in a fenced `text` code block. This presents the instructions as one copyable field with GitHub's native code-block copy control. Do not put the heading inside the code block. Keep the text understandable when copied out of the PR, and use full URLs rather than Markdown links when a link is required.
+
+Keep acceptance guidance specific to the changed user experience. Explain when product-owner QA genuinely does not apply inside the copyable text block.
+
+## Engineering QA Instructions
+
+Under `<summary><h3>Engineering QA Instructions</h3></summary>`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when engineering manual testing genuinely does not apply.
+
+Keep guidance specific to the diff. Inspect further or ask the user instead of fabricating coverage.
+
+## Automated Testing Instructions
 
 Inspect changed files, repository instructions, project-native commands, CI, and documented workflows. Use only supported commands; never invent one or claim it ran when it did not.
 
-Under `### Automated`:
+Under `<summary><h3>Automated Testing Instructions</h3></summary>`:
 
 - List exact commands and what each verifies.
 - Report results from commands actually run.
 - State when no reliable project-native automated path exists.
 
 Prefer focused checks for the changed behavior, followed by broader checks when relevant.
-
-## Manual QA for Engineering
-
-Under `### Manual QA for Engineering`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when engineering manual testing genuinely does not apply.
-
-Keep guidance specific to the diff. Inspect further or ask the user instead of fabricating coverage.
-
-## Manual QA for Product Owners
-
-Under `### Manual QA for Product Owners`, give numbered, user-facing acceptance steps with expected outcomes. Exclude engineering-only setup details; link back to the engineering section when product-owner verification depends on a prepared environment.
-
-Keep acceptance guidance specific to the changed user experience. Explain when product-owner QA genuinely does not apply.
 
 ## Commit Hygiene
 
@@ -81,7 +102,7 @@ If the diff changes UI for even one category of user, make a serious attempt to 
 - Continue troubleshooting missing data, authentication, permissions, routing, or local-runner setup until the evidence attempt is genuinely blocked. Record the commands, state/fixture work, and concrete blocker if a capture still cannot be produced.
 - Never use "no fixtures," "too hard to run locally," "small CSS change," or similar convenience reasoning as the explanation for skipping an attempt.
 
-Use the appropriate Manual QA section for steps and expected results; use `## Visual Proof` for each artifact:
+Use the appropriate QA Instructions section for steps and expected results; use `## Visual Proof` for each artifact:
 
 ```markdown
 - <surface> — <viewport/device> — <theme> — <mode>: <link or attachment>
@@ -122,6 +143,6 @@ In each review-context cell, show only the filename and changed line or range—
 
 ## Updates
 
-On update, replace stale `Automated`, both Manual QA sections, `Visual Proof`, and `High-Risk Items for Human Review` content; preserve other content and requirements.
+On update, replace stale `Product Owner QA Instructions`, `Engineering QA Instructions`, `Automated Testing Instructions`, `Visual Proof`, and `High-Risk Items for Human Review` content; preserve other content and requirements.
 
 Do not assume a platform or CLI. The active platform skill handles request operations; this skill supplies testing content or a ready-to-paste section.

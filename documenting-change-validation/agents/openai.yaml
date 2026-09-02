@@ -1,4 +1,4 @@
 interface:
   display_name: "Documenting Change Validation"
   short_description: "Keep change-request validation proof and human risk review accurate"
-  default_prompt: "Maintain the High-Risk Items for Human Review, How to Test, and Visual Proof sections for this pull/merge request."
+  default_prompt: "Maintain the High-Risk Items for Human Review, collapsed QA instruction sections, and Visual Proof for this pull/merge request."
