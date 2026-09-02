@@ -19,11 +19,9 @@ Ensure the body contains these sections and headings:
 ## How to Test
 
 <details>
-<summary><h3>Product Owner QA Instructions</h3></summary>
+<summary><h3>Automated Testing Instructions</h3></summary>
 
-```text
-[Numbered user-facing acceptance steps with expected outcomes]
-```
+[Exact commands, results, and what each command verifies]
 
 </details>
 
@@ -35,9 +33,11 @@ Ensure the body contains these sections and headings:
 </details>
 
 <details>
-<summary><h3>Automated Testing Instructions</h3></summary>
+<summary><h3>Product Owner QA Instructions</h3></summary>
 
-[Exact commands, results, and what each command verifies]
+```text
+[Numbered user-facing acceptance steps with expected outcomes]
+```
 
 </details>
 
@@ -52,20 +52,6 @@ For any change that changes what any user can see or do in the system—web, nat
 
 Before writing or updating the body, inspect the complete PR diff and follow [High-risk human review](references/high-risk-human-review.md). This assessment is mandatory for every change, even when no item is ultimately flagged.
 
-## Product Owner QA Instructions
-
-Under `<summary><h3>Product Owner QA Instructions</h3></summary>`, give numbered, user-facing acceptance steps with expected outcomes. Exclude engineering-only setup details; link back to the engineering section when product-owner verification depends on a prepared environment.
-
-Wrap the complete Product Owner body in a fenced `text` code block. This presents the instructions as one copyable field with GitHub's native code-block copy control. Do not put the heading inside the code block. Keep the text understandable when copied out of the PR, and use full URLs rather than Markdown links when a link is required.
-
-Keep acceptance guidance specific to the changed user experience. Explain when product-owner QA genuinely does not apply inside the copyable text block.
-
-## Engineering QA Instructions
-
-Under `<summary><h3>Engineering QA Instructions</h3></summary>`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when engineering manual testing genuinely does not apply.
-
-Keep guidance specific to the diff. Inspect further or ask the user instead of fabricating coverage.
-
 ## Automated Testing Instructions
 
 Inspect changed files, repository instructions, project-native commands, CI, and documented workflows. Use only supported commands; never invent one or claim it ran when it did not.
@@ -77,6 +63,20 @@ Under `<summary><h3>Automated Testing Instructions</h3></summary>`:
 - State when no reliable project-native automated path exists.
 
 Prefer focused checks for the changed behavior, followed by broader checks when relevant.
+
+## Engineering QA Instructions
+
+Under `<summary><h3>Engineering QA Instructions</h3></summary>`, state prerequisites, setup, fixtures, permissions, or environment assumptions; give numbered, reproducible steps with expected results; and explain when engineering manual testing genuinely does not apply.
+
+Keep guidance specific to the diff. Inspect further or ask the user instead of fabricating coverage.
+
+## Product Owner QA Instructions
+
+Under `<summary><h3>Product Owner QA Instructions</h3></summary>`, give numbered, user-facing acceptance steps with expected outcomes. Exclude engineering-only setup details; link back to the engineering section when product-owner verification depends on a prepared environment.
+
+Wrap the complete Product Owner body in a fenced `text` code block. This presents the instructions as one copyable field with GitHub's native code-block copy control. Do not put the heading inside the code block. Keep the text understandable when copied out of the PR, and use full URLs rather than Markdown links when a link is required.
+
+Keep acceptance guidance specific to the changed user experience. Explain when product-owner QA genuinely does not apply inside the copyable text block.
 
 ## Commit Hygiene
 
