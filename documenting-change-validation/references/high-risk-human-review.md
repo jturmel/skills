@@ -46,13 +46,23 @@ Do not require retries, circuit breakers, fallbacks, or asynchronous execution f
 
 ## Review-UI links
 
-For GitHub, link to the exact lines in the pull request's **Files changed** view so the reviewer stays in the review UI. Use the actual URL provided by that view. Its shape is:
+For GitHub, link to the exact lines in the pull request's **Files changed** view so the reviewer stays in the review UI. Copy the URL from that view or calculate it from the verified PR diff. Its shape is:
 
 ```text
 https://github.com/{owner}/{repo}/pull/{pr_number}/files#diff-{file_anchor}R{start_line}-R{end_line}
 ```
 
-Use `R` anchors for added or modified lines and `L` anchors for deleted lines. A single-line link ends in `R{line}` or `L{line}`. `{file_anchor}` is the hosting platform's generated diff anchor: obtain it from the actual PR changes view rather than calculating, guessing, or fabricating it. For another hosting platform, use its equivalent line link in the merge request's diff or changes view.
+Use `R` anchors for added or modified lines and `L` anchors for deleted lines. A single-line link ends in `R{line}` or `L{line}`.
+
+For GitHub, `{file_anchor}` can be calculated as the lowercase hexadecimal SHA-256 digest of the exact repository-relative file path, encoded as UTF-8 without a trailing newline. Use the `filename` returned by the PR files API, including for renamed files; do not use `previous_filename`, a basename, an absolute path, a URL-encoded path, or the file-content blob SHA. For example:
+
+```bash
+python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest())' 'backend/core/migrations/example.py'
+```
+
+Verify that the path belongs to the current PR diff and that the selected line numbers and side match its diff hunks. Calculation is allowed without a browser or additional user confirmation; do not block on copying a browser-generated link when the diff supplies the required path and lines. When browser access is available, check that the link highlights the intended lines. Otherwise, distinguish a calculated link checked against the diff from a browser-verified link; reading back the saved PR body verifies the edit, not browser navigation.
+
+For another hosting platform, use its equivalent line link in the merge request's diff or changes view; do not assume GitHub's anchor algorithm applies.
 
 If the request does not exist yet, create it through the active platform workflow, resolve the real changes-view links, and immediately update the risk section before handoff. Never leave placeholder, blob, branch, or repository-file links in the final request body.
 
