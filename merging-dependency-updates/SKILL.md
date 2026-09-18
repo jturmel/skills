@@ -27,7 +27,7 @@ Keep the goal active while any PR is Ready, Pending, or Needs rebase. Complete i
 
 ## Controller and Workers
 
-Only the controller may comment, label, edit a rebase checkbox, or merge. Mutations are serial. Read-only discovery and polling may use an available lightweight worker at low reasoning, preferring Luna, Grok 4.6, Haiku 4.5, then Flash 3.8. Validate every worker result live before mutation.
+Only the controller may comment, label, edit a rebase checkbox, or merge. Mutations are serial. Read-only discovery and polling may use a lightweight worker at low reasoning, preferring Luna, Grok 4.6, Haiku 4.5, then Flash 3.8 among models exposed by the active runtime. Skip unavailable families; use another available lightweight worker or keep the work in the controller rather than failing the run. Validate every worker result live before mutation.
 
 ## Preflight
 
@@ -64,7 +64,7 @@ Never merge from cached state, bypass a stale-head rejection, mutate candidates 
 
 ## Limits and Ambiguity
 
-Allow at most three rebase requests without progress for one unchanged head. Do not duplicate an acknowledged in-progress request. Block checks after one hour without observable progress unless repository documentation defines another timeout.
+Allow at most three rebase requests without progress for one unchanged head. Do not duplicate an acknowledged in-progress request. Apply a one-hour no-progress limit to Pending checks, mergeability, and acknowledged bot work unless repository documentation defines another timeout. Measure it from the last observable state change; when it expires, refresh once and classify the unchanged PR Blocked rather than polling forever.
 
 After a timeout, lost response, or other ambiguous mutation result, reread live state before deciding whether to retry. PR-level Blocked is a terminal queue outcome, not overall-goal failure. If every candidate is Merged, Clean failing, Blocked, or Gone, complete the run and report those outcomes. Mark the overall goal blocked only when the goal tool's own repeated-blocker rule applies and the final terminal audit cannot be completed.
 
