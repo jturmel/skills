@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Create a reusable `merging-dependency-updates` skill that processes a GitHub repository's open dependency-update pull requests from Dependabot, Renovate, and Snyk. Once a user explicitly authorizes a repository run, the skill autonomously discovers, classifies, rebases, and polls eligible pull requests, requests user confirmation before each exact-head merge, and repeats until no actionable pull request remains.
+Create a reusable `merging-dependency-updates` skill that processes a GitHub repository's open dependency-update pull requests from Dependabot, Renovate, and Snyk. At the start of an authorized run, the user chooses per-merge approval or automatic approval for all eligible merges. The skill then discovers, classifies, rebases, polls, and processes the queue until no actionable pull request remains.
 
 The skill leaves clean pull requests with terminal failing checks open. It does not repair their code, override their checks, or treat them as blockers to completing the queue run.
 
@@ -16,9 +16,11 @@ Draft pull requests are not merge candidates. They remain open and appear in the
 
 ## Authorization Boundary
 
-An explicit user request to process dependency updates in a named repository authorizes discovery, provider rebase requests, and polling for that repository. Before every merge, the skill must ask the user to approve that specific pull request at its freshly verified head SHA.
+An explicit user request to process dependency updates in a named repository authorizes discovery, provider rebase requests, and polling for that repository. Approval-mode selection is the first operational action, before goal inspection, repository preflight, or mutation. If the user did not already choose one, ask whether to approve each merge or automatically approve all eligible merges for this repository run.
 
-Queue-level authorization, approval for another pull request, or approval for an earlier head SHA is not merge approval. If the head or any merge gate changes after approval, refresh the pull request and request new approval only after it is Ready again. If the user declines, leave the pull request open and report it as blocked. If the user does not respond, leave it awaiting approval.
+In per-merge mode, approval is tied to one pull request's freshly verified head SHA. Approval for another pull request or an earlier head is invalid. If the user declines, leave the pull request open and report it as blocked; if the user does not respond, leave it awaiting approval.
+
+In automatic mode, the initial choice authorizes every eligible merge in the named repository for the current run without further merge prompts. It never bypasses fresh gate verification or the expected-head guard. Pause or stop revokes remaining automatic approval for that run.
 
 Automatic skill discovery does not itself authorize mutations. If the user asks only for an audit, status, explanation, or recommendation, the skill remains read-only. Repository scope must be unambiguous before the first comment, label change, checkbox update, or merge.
 
@@ -26,14 +28,11 @@ The controller must stop further mutations immediately if the user asks it to pa
 
 ## Goal-Mode Execution
 
-This queue is a long-running task with a verification loop and a measurable stopping condition. At the start of an authorized run, the skill should use the runtime's goal mode, goal skill, or goal tool when one is available.
+Per-merge mode does not use goal tooling. Do not inspect, create, reuse, update, complete, or block a goal for that run.
 
-Before creating a goal, inspect current goal state when the runtime supports that operation:
+Automatic mode requires an active matching goal before repository preflight. After recording automatic mode, inspect goal state. Reuse a goal only when its objective explicitly covers the exact repository's dependency-update queue, or create one without inventing a token budget when none exists. Treat every other active goal as unrelated; never replace or clear it.
 
-- If no unfinished goal exists, create one for the named repository without inventing a token budget.
-- If the current goal already covers the same repository queue, continue under it rather than creating a duplicate.
-- If an unrelated unfinished goal prevents creation, do not replace or clear it. Continue the queue in the current session and report that goal mode could not be started.
-- If goal capability is unavailable or disabled, continue normally; absence of goal mode is not a queue blocker.
+If goal capability is unavailable, goal creation fails, or an unrelated unfinished goal prevents startup, tell the user and fall back to per-merge approval before repository preflight. Do not perform automatic merges without the matching goal.
 
 Use an objective equivalent to:
 
@@ -41,7 +40,7 @@ Use an objective equivalent to:
 Process the verified Dependabot, Renovate, and Snyk pull-request queue for OWNER/REPOSITORY until every discovered candidate is merged, clean with terminal failing verification, blocked under the defined retry or inactivity limits, or closed or superseded externally. Preserve repository protections, do not repair failing pull requests, and validate the final live queue state.
 ```
 
-Keep the goal active while candidates are Ready, Awaiting approval, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
+In automatic mode, keep the goal active while candidates are Ready, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
 
 Goal mode adds persistence, not authority. It does not broaden repository scope, grant new credentials, bypass approvals, or relax any merge gate.
 
@@ -82,8 +81,8 @@ Every refresh assigns each candidate to one of these states:
 
 | State | Predicate | Action |
 | --- | --- | --- |
-| Ready | Non-draft, cleanly mergeable, required approvals satisfied, all required checks successful, and no observed test or verification check failed | Refresh immediately, then request user approval for the exact head |
-| Awaiting approval | Ready gates pass, but the user has not approved this pull request at its current head SHA | Ask once; do not merge or infer approval |
+| Ready | Non-draft, cleanly mergeable, required approvals satisfied, all required checks successful, and no observed test or verification check failed | Refresh; request exact-head approval in per-merge mode or merge under automatic mode |
+| Awaiting approval | Per-merge mode, Ready gates pass, but the user has not approved this pull request at its current head SHA | Ask once; do not merge or infer approval |
 | Pending | Checks, mergeability, or bot rebase work is still in progress | Poll until the state changes or the inactivity limit is reached |
 | Needs rebase | Conflicted or otherwise stale under the repository's merge policy | Invoke the verified provider adapter, then revisit after the head changes |
 | Clean failing | Cleanly mergeable, no checks pending, and at least one test or verification check has a terminal failure | Leave open; refresh again after later merges to ensure it remains clean |
@@ -102,10 +101,10 @@ Immediately before every merge, the controller must reread the pull request and 
 - required approvals are satisfied;
 - every required check for the current head is successful;
 - no observed test or verification check for the current head has failed;
-- the user explicitly approved merging this pull request at this exact head SHA;
+- the selected approval mode authorizes the merge: exact-head approval in per-merge mode or run-scoped automatic approval;
 - the head SHA is supplied to the merge operation as an expected-head or equivalent concurrency guard.
 
-The skill follows the repository's configured merge policy. It does not invent a global squash, merge-commit, or rebase-merge preference. A stale-head rejection or any changed merge gate invalidates the user's approval and requires a complete refresh; it is never bypassed.
+The skill follows the repository's configured merge policy. It does not invent a global squash, merge-commit, or rebase-merge preference. A stale-head rejection or any changed merge gate requires a complete refresh; it is never bypassed. In per-merge mode, it also invalidates the prior exact-head approval.
 
 After each successful merge, the controller refreshes all remaining candidates before choosing the next mutation.
 
@@ -162,16 +161,18 @@ A clean, passing pull request that contains deliberate human follow-up commits m
 
 The controller processes mutations serially:
 
-1. Refresh the full candidate queue.
-2. Ask the user to approve one Ready pull request at its fresh head SHA, reread every gate after approval, then merge only if the approved head and every gate remain unchanged.
-3. Refresh the entire queue because the base branch changed.
-4. Request provider rebases for pull requests that now Need rebase.
-5. Poll Pending pull requests with lightweight workers when available.
-6. Repeat while any pull request can still become Ready.
+1. Record the approval mode; in automatic mode, start or reuse the required goal or fall back to per-merge mode.
+2. Refresh the full candidate queue.
+3. For one Ready pull request, request exact-head approval in per-merge mode or use the run-scoped approval in automatic mode.
+4. Reread every gate immediately before merging and merge only with the fresh expected head SHA.
+5. Refresh the entire queue because the base branch changed.
+6. Request provider rebases for pull requests that now Need rebase.
+7. Poll Pending pull requests with lightweight workers when available.
+8. Repeat while any pull request can still become Ready.
 
 A previously Clean failing pull request remains in refreshes. If a later merge makes it conflicted, it returns to Needs rebase. Once rebased, it is merged if checks pass or returns to Clean failing if they fail.
 
-When no Ready, Pending, or Needs rebase work remains but at least one pull request is Awaiting approval, the controller reports each exact-head approval request and hands control back to the user. This is a nonterminal handoff: leave the goal active, do not mark the run complete or blocked, and resume with a fresh classification when the user responds.
+In per-merge mode, when no Ready, Pending, or Needs rebase work remains but at least one pull request is Awaiting approval, the controller reports each exact-head approval request and hands control back to the user. This is a nonterminal handoff; resume with a fresh classification when the user responds.
 
 For a single unchanged head, make at most three rebase requests that fail to produce progress. Avoid duplicate requests while the provider has acknowledged work or checks are running.
 
@@ -224,19 +225,22 @@ Baseline scenarios must demonstrate failures without the skill, including:
 5. A bot branch containing human-authored commits that regeneration could overwrite.
 6. A stale-head race between the final check read and merge attempt.
 7. Pending checks that never finish.
-8. Goal mode available with no active goal, unavailable, and occupied by an unrelated unfinished goal.
+8. Approval mode unspecified, per-merge mode selected, automatic mode selected with goal availability, and automatic mode blocked by missing or occupied goal tooling.
 
 After authoring, rerun the same scenarios with the skill and verify that the agent:
 
 - keeps mutations serial;
 - uses provider-specific rebase behavior;
 - refreshes exact-head evidence before merging;
-- asks for user confirmation before each merge, tied to the freshly verified pull request head SHA;
+- asks for a mode before preflight when unspecified;
+- uses no goal tooling and requests exact-head confirmation in per-merge mode;
+- uses goal mode and no further merge prompts in automatic mode;
+- falls back to per-merge mode when automatic-mode goal startup cannot succeed;
 - leaves clean failing pull requests open;
 - fails closed on ambiguous or unsafe states;
 - stops at the defined retry and inactivity limits;
-- starts or reuses an appropriate goal when possible without replacing unrelated work or expanding permissions;
-- completes the goal only after the final live queue audit;
+- starts or reuses an appropriate goal only in automatic mode without replacing unrelated work or expanding repository scope;
+- completes an automatic-mode goal only after the final live queue audit;
 - produces the required final report.
 
 Finally, run the skill validator and inspect the generated UI metadata for consistency with the entrypoint.
