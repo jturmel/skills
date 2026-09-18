@@ -4,7 +4,7 @@
 
 **Goal:** Create and behaviorally validate a reusable skill that safely clears eligible GitHub dependency-update pull-request queues through serial, exact-head-guarded merges and provider-specific rebases.
 
-**Architecture:** Keep the always-applicable authorization, goal-mode, classification, merge-gate, loop, and reporting contract in `SKILL.md`. Put conditional Dependabot, Renovate, and Snyk rebase mechanics in one provider reference loaded only when a rebase is needed. Use lightweight, low-reasoning agents for read-only pressure tests and queue inspection; one controller retains all mutation authority.
+**Architecture:** Keep the approval-mode selection, conditional goal-mode, classification, merge-gate, loop, and reporting contract in `SKILL.md`. Put conditional Dependabot, Renovate, and Snyk rebase mechanics in one provider reference loaded only when a rebase is needed. Use lightweight, low-reasoning agents for read-only pressure tests and queue inspection; one controller retains all mutation authority.
 
 **Tech Stack:** Markdown Agent Skills, YAML UI metadata, bundled `skill-creator` initializer/validator, Git, and Codex lightweight subagents for behavioral evaluation.
 
@@ -13,8 +13,9 @@
 ## Global Constraints
 
 - Support GitHub pull requests from verified Dependabot, Renovate, and Snyk bot identities only.
-- A named-repository processing request authorizes discovery, provider rebase requests, and polling; each merge requires user approval for that pull request's freshly verified head SHA.
-- Start or reuse goal mode when available, without a token budget, without replacing unrelated goals, and without expanding authority.
+- A named-repository processing request authorizes discovery, provider rebase requests, and polling; make approval-mode selection the first operational action, before goal inspection or preflight, unless the user already chose.
+- Per-merge mode does not use goal tooling and requires approval for each pull request's freshly verified head SHA.
+- Automatic mode requires a matching goal and performs eligible merges without further prompts; if goal startup cannot succeed, tell the user and fall back to per-merge mode.
 - Prefer Luna low, Grok 4.6 low, Haiku 4.5 low, or Flash 3.8 low for read-only workers, limited to models exposed by the runtime.
 - Only the controller may comment, label, update a checkbox, or merge; mutations are serial.
 - Refresh the exact head, checks, approvals, author, draft state, and mergeability immediately before every merge and use an expected-head guard.
@@ -65,7 +66,7 @@ You are processing all dependency-update pull requests for acme/widgets. The use
 
 Save each complete response to `control-1.md` through `control-5.md` in the temporary directory.
 
-Expected RED evidence: at least one response merges without exact-head user confirmation, merges from stale observations, mutates in parallel, guesses a Snyk command, manually rebases a bot branch, retries without bounds, merges or repairs #13, omits a final live audit, or lacks a verifiable stopping rule. If all five controls already satisfy the complete design, stop and reassess whether a new skill is justified before authoring it.
+Expected RED evidence: at least one response omits approval-mode selection, uses goal mode for per-merge approval, fails to use goal mode for automatic approval, merges from stale observations, mutates in parallel, guesses a Snyk command, manually rebases a bot branch, retries without bounds, merges or repairs #13, omits a final live audit, or lacks a verifiable stopping rule. If all five controls already satisfy the complete design, stop and reassess whether a new skill is justified before authoring it.
 
 - [ ] **Step 3: Run three distinct pressure scenarios without the skill**
 
@@ -104,6 +105,7 @@ human-commit overwrite risk
 clean-failing PR mishandled
 unbounded polling or retry
 goal lifecycle error
+approval-mode error
 ambiguous mutation retry
 missing final audit
 ```
@@ -159,13 +161,16 @@ description: Use when asked to process, rebase, merge, clear, or babysit open De
 
 Clear eligible bot dependency updates without racing the base branch. One controller owns every mutation; earlier snapshots and worker reports are evidence to refresh, never merge authorization.
 
-## Authorization and Goal
+## Approval Mode and Goal
 
-An explicit request to process a named repository authorizes discovery, provider rebase requests, and polling. Every merge requires a separate user confirmation for that pull request's freshly verified head SHA. Audit or status requests stay read-only. Stop mutations immediately if the user says pause or stop.
+An explicit request to process a named repository authorizes discovery, provider rebase requests, and polling. Approval-mode selection is the first operational action, before goal inspection, repository preflight, or mutation. If the user already chose, record it without asking again; otherwise ask whether to approve each merge or automatically approve all eligible merges for this repository run.
 
-For an authorized run, inspect goal state when goal tooling exists. Create one repository-scoped goal when none exists, with no token budget; its objective is to reach the final audited terminal state defined by this skill while preserving protections and leaving failing PRs unrepaired. Reuse a matching goal. Never replace an unrelated unfinished goal; continue normally and report that goal mode could not start. Continue normally if goals are unavailable. Goal mode adds persistence, not permission.
+- **Per-merge approval:** Do not use goal tooling. Ask before each merge for that pull request's freshly verified head SHA.
+- **Automatic approval:** The user's choice authorizes every eligible merge in the named repository for this run without another merge prompt. After recording that choice, reuse a goal only when its objective explicitly covers the exact repository's dependency-update queue, or create a repository-scoped goal with no token budget.
 
-Keep the goal active while any PR is Ready, Awaiting approval, Pending, or Needs rebase. Complete it only after the final live audit proves every candidate terminal. Follow the goal tool's own blocked-status rules.
+If automatic-mode goal startup cannot succeed because tooling is unavailable, creation fails, or an unrelated unfinished goal exists, tell the user and fall back to per-merge approval before preflight. Never replace or clear an unrelated goal.
+
+In automatic mode, keep the goal active while any PR is Ready, Pending, or Needs rebase. Complete it only after the final live audit proves every candidate terminal. Follow the goal tool's own blocked-status rules.
 
 ## Controller and Workers
 
@@ -181,8 +186,8 @@ Drafts and unverifiable authors are Blocked. Unknown check policy is Blocked; a 
 
 | State | Observable predicate | Action |
 | --- | --- | --- |
-| Ready | Open, non-draft, cleanly mergeable, approvals satisfied, required checks successful, no observed test/verification failure | Refresh, then request exact-head approval |
-| Awaiting approval | Ready gates pass, but the user has not approved this PR at its current head SHA | Ask once; do not merge |
+| Ready | Open, non-draft, cleanly mergeable, approvals satisfied, required checks successful, no observed test/verification failure | Refresh; request approval in per-merge mode or merge under automatic mode |
+| Awaiting approval | Per-merge mode, Ready gates pass, but the user has not approved this PR at its current head SHA | Ask once; do not merge |
 | Pending | Checks, mergeability, or acknowledged bot work is in progress | Poll to change or inactivity limit |
 | Needs rebase | Conflicted or stale under repository policy | Read `references/provider-rebases.md`, then invoke its adapter |
 | Clean failing | Clean, nothing pending, at least one terminal test/verification failure | Leave open; refresh after later merges |
@@ -193,18 +198,17 @@ Neutral or skipped checks are not failures unless policy requires success. Cance
 
 ## Queue Loop
 
-1. Refresh and classify the complete candidate queue.
-2. Select one Ready PR.
-3. Immediately reread its author, draft state, head SHA, mergeability, approvals, required checks, and all observed test/verification failures.
-4. If every gate passes, ask the user to approve merging that PR at the exact verified head SHA.
-5. After approval, reread every gate. Merge only if the approved head and all gates remain unchanged, using the repository's merge policy and the approved head SHA as an expected-head guard.
-6. If the user declines, classify the PR Blocked. If no response arrives, leave it Awaiting approval.
-7. Refresh every remaining candidate after the base changes.
-8. Request provider rebases for Needs rebase PRs, poll Pending work, and repeat.
+1. Record the approval mode; in automatic mode, start or reuse the required goal or fall back to per-merge mode.
+2. Refresh and classify the complete candidate queue.
+3. Select one Ready PR and immediately reread every merge gate.
+4. In per-merge mode, ask for approval at the exact head; in automatic mode, do not ask again.
+5. Immediately before either mode merges, reread every gate and merge only with the freshly verified expected head SHA.
+6. Refresh every remaining candidate after the base changes.
+7. Request provider rebases for Needs rebase PRs, poll Pending work, and repeat.
 
 A Clean failing PR stays in later refreshes. If it becomes conflicted, rebase it; after fresh checks, merge it only if Ready.
 
-When no Ready, Pending, or Needs rebase work remains but at least one PR is Awaiting approval, report each exact-head approval request and hand control back to the user. Leave the goal active; do not mark the run complete or blocked. Resume with a fresh classification when the user responds.
+In per-merge mode, when no Ready, Pending, or Needs rebase work remains but at least one PR is Awaiting approval, report each exact-head approval request and hand control back to the user. Resume with a fresh classification when the user responds.
 
 Never merge from cached state, bypass a stale-head rejection, mutate candidates concurrently, repair failing code, regenerate lockfiles, force checks to pass, dismiss reviews, change protection settings, or manually force-push a bot branch.
 
@@ -346,7 +350,7 @@ Use $merging-dependency-updates from the current repository to answer this scena
 
 Save complete responses as `with-skill-1.md` through `with-skill-5.md`.
 
-Expected: all five converge on serial mutation, a live refresh before each merge, user confirmation tied to the exact head, expected-head guarding, provider-specific rebases, leaving #13 open, bounded waiting, and a final live audit. Read every response; do not score by keyword alone.
+Expected: all five converge on approval-mode selection before preflight, correct conditional goal use, serial mutation, a live refresh before each merge, expected-head guarding, provider-specific rebases, leaving #13 open, bounded waiting, and a final live audit. Read every response; do not score by keyword alone.
 
 - [ ] **Step 2: Run all three pressure scenarios with the skill**
 
@@ -354,9 +358,9 @@ Use a fresh lightweight, low-reasoning agent for each Task 1 pressure prompt. Su
 
 Expected:
 
-- Pressure 1 never merges from ten-minute-old state, races mutations, or treats queue-level authorization as per-merge approval.
+- Pressure 1 never merges from ten-minute-old state or races mutations; it applies the selected approval mode without weakening the merge gate.
 - Pressure 2 preserves the human commit, leaves the clean failing PR open, uses Dependabot/Renovate adapters, and treats the Snyk mention as unverified.
-- Pressure 3 preserves the unrelated goal, applies the 15-minute inactivity limit, rereads ambiguous mutations, and distinguishes PR-level blocked outcomes from overall goal status.
+- Pressure 3 preserves the unrelated goal, falls back from automatic to per-merge approval before preflight, applies the 15-minute inactivity limit, rereads ambiguous mutations, and distinguishes PR-level blocked outcomes from overall goal status.
 
 - [ ] **Step 3: Patch only demonstrated failures**
 
@@ -375,7 +379,7 @@ Expected: structural validation remains green.
 
 Run at least five fresh samples for changed wording and reread every complete response. Repeat Steps 3-4 until the tested failure is absent and response variance is acceptably low.
 
-Expected: the skill passes the no-stale-merge, serial-mutation, provider-adapter, clean-failure, bounded-retry, goal-lifecycle, and final-audit invariants under pressure.
+Expected: the skill passes the approval-mode, conditional-goal, no-stale-merge, serial-mutation, provider-adapter, clean-failure, bounded-retry, and final-audit invariants under pressure.
 
 - [ ] **Step 5: Commit evidence-supported refinements**
 
