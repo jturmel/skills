@@ -13,7 +13,15 @@ Clear eligible bot dependency updates without racing the base branch. One contro
 
 An explicit request to process a named repository authorizes the complete loop without per-merge confirmation. Audit or status requests stay read-only. Stop mutations immediately if the user says pause or stop.
 
-For an authorized run, inspect goal state when goal tooling exists. Create one repository-scoped goal when none exists, with no token budget; its objective is to reach the final audited terminal state defined by this skill while preserving protections and leaving failing PRs unrepaired. Reuse a matching goal. Never replace an unrelated unfinished goal; continue normally and report that goal mode could not start. Continue normally if goals are unavailable. Goal mode adds persistence, not permission.
+For every authorized run, goal startup is the first action:
+
+1. Inspect goal state when goal tooling exists.
+2. If an unrelated unfinished goal exists, do not create, replace, or clear a goal. Record that goal mode could not start and continue normally.
+3. Otherwise, if a matching goal exists, reuse it.
+4. Otherwise, create one repository-scoped goal with no token budget; its objective is to reach the final audited terminal state defined by this skill while preserving protections and leaving failing PRs unrepaired.
+5. If goal tooling is unavailable, record that fact and continue normally.
+
+Do not begin repository preflight until this goal-start decision is recorded. Goal mode adds persistence, not permission.
 
 Keep the goal active while any PR is Ready, Pending, or Needs rebase. Complete it only after the final live audit proves every candidate terminal. Follow the goal tool's own blocked-status rules.
 
@@ -42,12 +50,13 @@ Neutral or skipped checks are not failures unless policy requires success. Cance
 
 ## Queue Loop
 
-1. Refresh and classify the complete candidate queue.
-2. Select one Ready PR.
-3. Immediately reread its author, draft state, head SHA, mergeability, approvals, required checks, and all observed test/verification failures.
-4. Merge only if every gate still passes, using the repository's merge policy and the exact head SHA as an expected-head guard.
-5. Refresh every remaining candidate after the base changes.
-6. Request provider rebases for Needs rebase PRs, poll Pending work, and repeat.
+1. Complete the goal-start decision required above.
+2. Refresh and classify the complete candidate queue.
+3. Select one Ready PR.
+4. Immediately reread its author, draft state, head SHA, mergeability, approvals, required checks, and all observed test/verification failures.
+5. Merge only if every gate still passes, using the repository's merge policy and the exact head SHA as an expected-head guard.
+6. Refresh every remaining candidate after the base changes.
+7. Request provider rebases for Needs rebase PRs, poll Pending work, and repeat.
 
 A Clean failing PR stays in later refreshes. If it becomes conflicted, rebase it; after fresh checks, merge it only if Ready.
 
@@ -57,8 +66,8 @@ Never merge from cached state, bypass a stale-head rejection, mutate candidates 
 
 Allow at most three rebase requests without progress for one unchanged head. Do not duplicate an acknowledged in-progress request. Block checks after one hour without observable progress unless repository documentation defines another timeout.
 
-After a timeout, lost response, or other ambiguous mutation result, reread live state before deciding whether to retry. A single blocked PR does not make the overall goal blocked while other candidates can progress.
+After a timeout, lost response, or other ambiguous mutation result, reread live state before deciding whether to retry. PR-level Blocked is a terminal queue outcome, not overall-goal failure. If every candidate is Merged, Clean failing, Blocked, or Gone, complete the run and report those outcomes. Mark the overall goal blocked only when the goal tool's own repeated-blocker rule applies and the final terminal audit cannot be completed.
 
 ## Completion Report
 
-Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.
+Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. A final audit containing Blocked PRs still completes the run. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.
