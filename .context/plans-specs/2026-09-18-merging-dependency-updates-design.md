@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Create a reusable `merging-dependency-updates` skill that processes a GitHub repository's open dependency-update pull requests from Dependabot, Renovate, and Snyk. Once a user explicitly authorizes a repository run, the skill autonomously merges eligible pull requests, requests provider-native rebases for conflicted pull requests, and repeats until no actionable pull request remains.
+Create a reusable `merging-dependency-updates` skill that processes a GitHub repository's open dependency-update pull requests from Dependabot, Renovate, and Snyk. Once a user explicitly authorizes a repository run, the skill autonomously discovers, classifies, rebases, and polls eligible pull requests, requests user confirmation before each exact-head merge, and repeats until no actionable pull request remains.
 
 The skill leaves clean pull requests with terminal failing checks open. It does not repair their code, override their checks, or treat them as blockers to completing the queue run.
 
@@ -16,7 +16,9 @@ Draft pull requests are not merge candidates. They remain open and appear in the
 
 ## Authorization Boundary
 
-An explicit user request to process dependency updates in a named repository authorizes the complete rebase-and-merge loop for that repository. The skill does not pause before each clean merge.
+An explicit user request to process dependency updates in a named repository authorizes discovery, provider rebase requests, and polling for that repository. Before every merge, the skill must ask the user to approve that specific pull request at its freshly verified head SHA.
+
+Queue-level authorization, approval for another pull request, or approval for an earlier head SHA is not merge approval. If the head or any merge gate changes after approval, refresh the pull request and request new approval only after it is Ready again. If the user declines, leave the pull request open and report it as blocked. If the user does not respond, leave it awaiting approval.
 
 Automatic skill discovery does not itself authorize mutations. If the user asks only for an audit, status, explanation, or recommendation, the skill remains read-only. Repository scope must be unambiguous before the first comment, label change, checkbox update, or merge.
 
@@ -39,7 +41,7 @@ Use an objective equivalent to:
 Process the verified Dependabot, Renovate, and Snyk pull-request queue for OWNER/REPOSITORY until every discovered candidate is merged, clean with terminal failing verification, blocked under the defined retry or inactivity limits, or closed or superseded externally. Preserve repository protections, do not repair failing pull requests, and validate the final live queue state.
 ```
 
-Keep the goal active while candidates are Ready, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
+Keep the goal active while candidates are Ready, Awaiting approval, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
 
 Goal mode adds persistence, not authority. It does not broaden repository scope, grant new credentials, bypass approvals, or relax any merge gate.
 
@@ -80,7 +82,8 @@ Every refresh assigns each candidate to one of these states:
 
 | State | Predicate | Action |
 | --- | --- | --- |
-| Ready | Non-draft, cleanly mergeable, required approvals satisfied, all required checks successful, and no observed test or verification check failed | Refresh immediately, then merge with an exact-head guard |
+| Ready | Non-draft, cleanly mergeable, required approvals satisfied, all required checks successful, and no observed test or verification check failed | Refresh immediately, then request user approval for the exact head |
+| Awaiting approval | Ready gates pass, but the user has not approved this pull request at its current head SHA | Ask once; do not merge or infer approval |
 | Pending | Checks, mergeability, or bot rebase work is still in progress | Poll until the state changes or the inactivity limit is reached |
 | Needs rebase | Conflicted or otherwise stale under the repository's merge policy | Invoke the verified provider adapter, then revisit after the head changes |
 | Clean failing | Cleanly mergeable, no checks pending, and at least one test or verification check has a terminal failure | Leave open; refresh again after later merges to ensure it remains clean |
@@ -99,9 +102,10 @@ Immediately before every merge, the controller must reread the pull request and 
 - required approvals are satisfied;
 - every required check for the current head is successful;
 - no observed test or verification check for the current head has failed;
+- the user explicitly approved merging this pull request at this exact head SHA;
 - the head SHA is supplied to the merge operation as an expected-head or equivalent concurrency guard.
 
-The skill follows the repository's configured merge policy. It does not invent a global squash, merge-commit, or rebase-merge preference. A stale-head rejection requires a complete refresh; it is never bypassed.
+The skill follows the repository's configured merge policy. It does not invent a global squash, merge-commit, or rebase-merge preference. A stale-head rejection or any changed merge gate invalidates the user's approval and requires a complete refresh; it is never bypassed.
 
 After each successful merge, the controller refreshes all remaining candidates before choosing the next mutation.
 
@@ -159,7 +163,7 @@ A clean, passing pull request that contains deliberate human follow-up commits m
 The controller processes mutations serially:
 
 1. Refresh the full candidate queue.
-2. Merge one Ready pull request using the fresh expected head SHA.
+2. Ask the user to approve one Ready pull request at its fresh head SHA, reread every gate after approval, then merge only if the approved head and every gate remain unchanged.
 3. Refresh the entire queue because the base branch changed.
 4. Request provider rebases for pull requests that now Need rebase.
 5. Poll Pending pull requests with lightweight workers when available.
@@ -167,9 +171,11 @@ The controller processes mutations serially:
 
 A previously Clean failing pull request remains in refreshes. If a later merge makes it conflicted, it returns to Needs rebase. Once rebased, it is merged if checks pass or returns to Clean failing if they fail.
 
+When no Ready, Pending, or Needs rebase work remains but at least one pull request is Awaiting approval, the controller reports each exact-head approval request and hands control back to the user. This is a nonterminal handoff: leave the goal active, do not mark the run complete or blocked, and resume with a fresh classification when the user responds.
+
 For a single unchanged head, make at most three rebase requests that fail to produce progress. Avoid duplicate requests while the provider has acknowledged work or checks are running.
 
-Pending checks have a default one-hour no-progress limit, measured from the last observable state change. A repository-specific documented timeout may replace this default. When the limit is reached, classify the pull request as Blocked rather than polling forever.
+Pending checks, mergeability, and acknowledged bot work have a default 15-minute no-progress limit, measured from the last observable state change. A repository-specific documented timeout may replace this default. When the limit is reached, refresh once and classify the unchanged pull request as Blocked rather than polling forever.
 
 The run completes when every discovered candidate is one of:
 
@@ -197,7 +203,7 @@ The final report must include:
 - externally closed or superseded candidates;
 - confirmation that the final open-candidate search was reread after the last mutation.
 
-The report must distinguish a fully cleared queue from a completed run that intentionally left clean failing or blocked pull requests open.
+Awaiting approval produces an interim handoff, not the final report. The final report must distinguish a fully cleared queue from a completed run that intentionally left clean failing or blocked pull requests open.
 
 ## Skill Packaging
 
@@ -225,7 +231,7 @@ After authoring, rerun the same scenarios with the skill and verify that the age
 - keeps mutations serial;
 - uses provider-specific rebase behavior;
 - refreshes exact-head evidence before merging;
-- merges without per-PR confirmation once the run is authorized;
+- asks for user confirmation before each merge, tied to the freshly verified pull request head SHA;
 - leaves clean failing pull requests open;
 - fails closed on ambiguous or unsafe states;
 - stops at the defined retry and inactivity limits;
