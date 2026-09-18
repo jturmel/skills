@@ -22,6 +22,32 @@ Automatic skill discovery does not itself authorize mutations. If the user asks 
 
 The controller must stop further mutations immediately if the user asks it to pause or stop.
 
+## Goal-Mode Execution
+
+This queue is a long-running task with a verification loop and a measurable stopping condition. At the start of an authorized run, the skill should use the runtime's goal mode, goal skill, or goal tool when one is available.
+
+Before creating a goal, inspect current goal state when the runtime supports that operation:
+
+- If no unfinished goal exists, create one for the named repository without inventing a token budget.
+- If the current goal already covers the same repository queue, continue under it rather than creating a duplicate.
+- If an unrelated unfinished goal prevents creation, do not replace or clear it. Continue the queue in the current session and report that goal mode could not be started.
+- If goal capability is unavailable or disabled, continue normally; absence of goal mode is not a queue blocker.
+
+Use an objective equivalent to:
+
+```text
+Process the verified Dependabot, Renovate, and Snyk pull-request queue for OWNER/REPOSITORY until every discovered candidate is merged, clean with terminal failing verification, blocked under the defined retry or inactivity limits, or closed or superseded externally. Preserve repository protections, do not repair failing pull requests, and validate the final live queue state.
+```
+
+Keep the goal active while candidates are Ready, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
+
+Goal mode adds persistence, not authority. It does not broaden repository scope, grant new credentials, bypass approvals, or relax any merge gate.
+
+References:
+
+- https://learn.chatgpt.com/use-cases/follow-goals
+- https://learn.chatgpt.com/docs/long-running-work
+
 ## Agent Architecture and Model Routing
 
 One controller owns the queue and is the only agent allowed to mutate GitHub state. It may delegate read-only discovery, pull-request classification, and polling to lightweight workers. Mutating work remains serial because every merge can change the mergeability of all remaining pull requests.
@@ -192,6 +218,7 @@ Baseline scenarios must demonstrate failures without the skill, including:
 5. A bot branch containing human-authored commits that regeneration could overwrite.
 6. A stale-head race between the final check read and merge attempt.
 7. Pending checks that never finish.
+8. Goal mode available with no active goal, unavailable, and occupied by an unrelated unfinished goal.
 
 After authoring, rerun the same scenarios with the skill and verify that the agent:
 
@@ -202,6 +229,8 @@ After authoring, rerun the same scenarios with the skill and verify that the age
 - leaves clean failing pull requests open;
 - fails closed on ambiguous or unsafe states;
 - stops at the defined retry and inactivity limits;
+- starts or reuses an appropriate goal when possible without replacing unrelated work or expanding permissions;
+- completes the goal only after the final live queue audit;
 - produces the required final report.
 
 Finally, run the skill validator and inspect the generated UI metadata for consistency with the entrypoint.
