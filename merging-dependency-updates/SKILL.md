@@ -18,7 +18,7 @@ An explicit request to process a named repository authorizes discovery, provider
 
 Automatic mode requires an active matching goal. If goal tooling is unavailable, goal creation fails, or an unrelated unfinished goal prevents startup, tell the user and fall back to per-merge approval without beginning repository preflight. Goal mode adds persistence, not repository scope or permission beyond the automatic-approval choice.
 
-In automatic mode, keep the goal active while any PR is Ready, Pending, or Needs rebase. Complete it only after the final live audit proves every candidate terminal. Follow the goal tool's own blocked-status rules.
+In automatic mode, keep the goal active while any PR is Ready, Pending, Needs rebase, or a Lockfile repair candidate, or has authorized repair work. Complete it only after the final live audit proves every candidate terminal. Follow the goal tool's own blocked-status rules.
 
 Audit or status requests stay read-only. Stop mutations immediately if the user says pause or stop; doing so revokes automatic approval for the remainder of that run.
 
@@ -40,7 +40,9 @@ Drafts and unverifiable authors are Blocked. Unknown check policy is Blocked; a 
 | Awaiting approval | Per-merge mode, Ready gates pass, but the user has not approved this PR at its current head SHA | Ask once; do not merge |
 | Pending | Checks, mergeability, or acknowledged bot work is in progress | Poll to change or inactivity limit |
 | Needs rebase | Conflicted or stale under repository policy | Read `references/provider-rebases.md`, then invoke its adapter |
-| Clean failing | Clean, nothing pending, at least one terminal test/verification failure | Leave open; refresh after later merges |
+| Lockfile repair candidate | Clean, no checks pending, and a terminal failure explicitly identifies a stale/frozen/out-of-sync lockfile or the documented locked-install/check command reproduces it, with no unrelated terminal failure | Read `references/lockfile-repairs.md` |
+| Awaiting repair approval | Per-merge mode and a verified repair diff is ready for this PR's current source head | Ask for repair-push approval tied to the PR, source SHA, and lockfile-only diff; do not push |
+| Clean failing | Clean, nothing pending, and a terminal failure that is ambiguous, unrelated to the lockfile, or otherwise ineligible for repair | Leave open; refresh after later merges |
 | Blocked | Unsafe or ambiguous state, permission failure, exhausted attempts, or timeout | Leave open and report why |
 | Gone | Merged, closed, or superseded externally | Record live outcome |
 
@@ -60,16 +62,18 @@ Neutral or skipped checks are not failures unless policy requires success. Cance
 
 A Clean failing PR stays in later refreshes. If it becomes conflicted, rebase it; after fresh checks, merge it only if Ready.
 
-In per-merge mode, when no Ready, Pending, or Needs rebase work remains but at least one PR is Awaiting approval, report each exact-head approval request and hand control back to the user. This is an explicit nonterminal handoff. On the user's response, resume with a fresh classification before any merge.
+When a Clean failing PR meets the lockfile repair evidence condition, classify it as a Lockfile repair candidate and follow the repair reference. Automatic mode authorizes only its narrowly scoped repair commit for the named repository and current run; per-merge mode requires separate repair-push approval. Repair approval never authorizes merge, and merge approval never authorizes repair. Keep an automatic-mode goal active while repair work or fresh checks remain.
 
-Never merge from cached state, bypass a stale-head rejection, mutate candidates concurrently, repair failing code, regenerate lockfiles, force checks to pass, dismiss reviews, change protection settings, or manually force-push a bot branch.
+In per-merge mode, when no Ready, Pending, Needs rebase, or authorized repair work remains but a PR is Awaiting merge or repair approval, report each request and hand control back to the user. For repair approval, include the PR, source SHA, and proposed lockfile-only diff. This is a nonterminal handoff; after the user's response, resume with a fresh classification before any mutation.
+
+Never merge from cached state, bypass a stale-head rejection, mutate candidates concurrently, repair failing code, force checks to pass, dismiss reviews, change protection settings, or manually force-push a bot branch. Lockfile regeneration is limited to the evidence-backed workflow in `references/lockfile-repairs.md`.
 
 ## Limits and Ambiguity
 
 Allow at most three rebase requests without progress for one unchanged head. Do not duplicate an acknowledged in-progress request. Apply a 15-minute no-progress limit to Pending checks, mergeability, and acknowledged bot work unless repository documentation defines another timeout. Measure it from the last observable state change; when it expires, refresh once and classify the unchanged PR Blocked rather than polling forever.
 
-After a timeout, lost response, or other ambiguous mutation result, reread live state before deciding whether to retry. PR-level Blocked is a terminal queue outcome, not overall-goal failure. If every candidate is Merged, Clean failing, Blocked, or Gone, complete the run and report those outcomes. In automatic mode, mark the overall goal blocked only when the goal tool's own repeated-blocker rule applies and the final terminal audit cannot be completed.
+After a timeout, lost response, or other ambiguous mutation result, reread live state before deciding whether to retry. PR-level Blocked is a terminal queue outcome, not overall-goal failure. In per-merge mode, an Awaiting repair approval is a nonterminal handoff. After a repair push, classify Pending until fresh checks finish. If every candidate is Merged, Clean failing, Blocked, or Gone, complete the run and report those outcomes. In automatic mode, mark the overall goal blocked only when the goal tool's own repeated-blocker rule applies and the final terminal audit cannot be completed.
 
 ## Completion Report
 
-Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. A final audit containing Blocked PRs still completes the run. Awaiting approval is not terminal and produces an interim handoff instead of this completion report. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.
+Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; repaired PRs with repair commit SHA and lockfile evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. A final audit containing Blocked PRs still completes the run. Awaiting merge or repair approval is not terminal and produces an interim handoff instead of this completion report. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.

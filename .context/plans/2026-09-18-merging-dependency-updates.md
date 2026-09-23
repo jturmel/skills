@@ -10,6 +10,12 @@
 
 **Spec:** `.context/plans-specs/2026-09-18-merging-dependency-updates-design.md`
 
+## Approved Lockfile-Repair Extension (2026-09-23)
+
+This approved extension supersedes earlier blanket wording in this plan that says not to regenerate lockfiles. Repair only when terminal logs explicitly identify a stale/frozen/out-of-sync lockfile or the repository's documented locked-install/check command reproduces it, and no unrelated terminal check failure exists. Read `references/lockfile-repairs.md` only for that evidence-backed candidate. Automatic mode authorizes a narrowly scoped repair commit for the named repository/current run; per-merge mode needs a separate repair-push approval tied to PR, source SHA, and proposed lockfile-only diff. Merge approval remains separate.
+
+Generate at the exact PR head in an isolated checkout with configured package-manager/tooling guidance. Accept expected lockfile-only changes, validate integrity and the relevant failure where supported, and allow one attempt per dependency-manifest state. Require a writable branch, one normal additive commit, a fresh remote-head equality check before push, and normal fast-forward as the final race guard. If the head changes, discard prepared work and reclassify live. Ambiguous evidence, unrelated changes, broad churn, failed validation, an unwritable branch, or persistent failure after one repair is Blocked. After verified push, classify Pending for fresh checks. Keep automatic goal work active through repair; per-merge awaiting repair approval is a nonterminal handoff. Report repair commit SHA and evidence. Existing provider-rebase protection treats a repair commit as non-bot work that provider regeneration must not overwrite.
+
 ## Global Constraints
 
 - Support GitHub pull requests from verified Dependabot, Renovate, and Snyk bot identities only.
@@ -19,16 +25,17 @@
 - Prefer Luna low, Grok 4.6 low, Haiku 4.5 low, or Flash 3.8 low for read-only workers, limited to models exposed by the runtime.
 - Only the controller may comment, label, update a checkbox, or merge; mutations are serial.
 - Refresh the exact head, checks, approvals, author, draft state, and mergeability immediately before every merge and use an expected-head guard.
-- Leave clean pull requests with terminal failing tests or verifications open.
+- Leave clean pull requests with terminal failing tests or verifications open unless the evidence-backed lockfile-repair extension applies.
 - Use provider-specific rebase behavior; never manually force-push a bot branch.
 - Make at most three unproductive rebase requests per unchanged head and stop Pending checks, mergeability, or acknowledged bot work after 15 minutes without progress unless the repository documents another timeout.
-- Do not repair code, regenerate lockfiles, force checks to pass, dismiss reviews, or change repository protections.
+- Do not repair application code, force checks to pass, dismiss reviews, or change repository protections. Lockfile regeneration is limited to the approved evidence-backed workflow above.
 - Keep automatic skill discovery enabled.
 
 ## File Map
 
 - Create `merging-dependency-updates/SKILL.md`: discovery metadata and the complete always-applicable queue controller contract.
 - Create `merging-dependency-updates/references/provider-rebases.md`: conditional provider commands, proof-of-progress rules, and bot-branch preservation rules.
+- Create `merging-dependency-updates/references/lockfile-repairs.md`: evidence qualification, scoped repair lifecycle, approval, and safe push rules.
 - Create `merging-dependency-updates/agents/openai.yaml`: UI name, concise description, and an invocation prompt that explicitly names `$merging-dependency-updates`.
 - Use the `mktemp` directory matching `/tmp/merging-dependency-updates-eval.XXXXXX/`: disposable baseline and forward-test transcripts; do not commit these artifacts.
 
@@ -129,11 +136,12 @@ Expected: no changes from Task 1. Do not commit temporary evaluation files.
 **Files:**
 - Create: `merging-dependency-updates/SKILL.md`
 - Create: `merging-dependency-updates/references/provider-rebases.md`
+- Create: `merging-dependency-updates/references/lockfile-repairs.md`
 - Create: `merging-dependency-updates/agents/openai.yaml`
 
 **Interfaces:**
 - Consumes: Failure categories and verbatim rationalizations from Task 1.
-- Produces: `$merging-dependency-updates`, with a required conditional read of `references/provider-rebases.md` whenever any candidate needs a rebase.
+- Produces: `$merging-dependency-updates`, with conditional reads of the provider rebase reference for Needs rebase and the lockfile repair reference only for evidence-backed candidates.
 
 - [ ] **Step 1: Initialize the skill skeleton**
 
@@ -190,7 +198,9 @@ Drafts and unverifiable authors are Blocked. Unknown check policy is Blocked; a 
 | Awaiting approval | Per-merge mode, Ready gates pass, but the user has not approved this PR at its current head SHA | Ask once; do not merge |
 | Pending | Checks, mergeability, or acknowledged bot work is in progress | Poll to change or inactivity limit |
 | Needs rebase | Conflicted or stale under repository policy | Read `references/provider-rebases.md`, then invoke its adapter |
-| Clean failing | Clean, nothing pending, at least one terminal test/verification failure | Leave open; refresh after later merges |
+| Lockfile repair candidate | Clean, no checks pending, and terminal logs explicitly identify a stale/frozen/out-of-sync lockfile or the documented locked-install/check command reproduces it, with no unrelated terminal failure | Read `references/lockfile-repairs.md` |
+| Awaiting repair approval | Per-merge mode and verified lockfile-only diff is ready for this PR's current source head | Ask for separate repair-push approval tied to PR, source SHA, and diff |
+| Clean failing | Clean, nothing pending, and a terminal failure is ambiguous, unrelated to the lockfile, or otherwise ineligible for repair | Leave open; refresh after later merges |
 | Blocked | Unsafe or ambiguous state, permission failure, exhausted attempts, or timeout | Leave open and report why |
 | Gone | Merged, closed, or superseded externally | Record live outcome |
 
@@ -208,9 +218,11 @@ Neutral or skipped checks are not failures unless policy requires success. Cance
 
 A Clean failing PR stays in later refreshes. If it becomes conflicted, rebase it; after fresh checks, merge it only if Ready.
 
-In per-merge mode, when no Ready, Pending, or Needs rebase work remains but at least one PR is Awaiting approval, report each exact-head approval request and hand control back to the user. Resume with a fresh classification when the user responds.
+Automatic mode authorizes only the scoped repair commit for this repository run and keeps the goal active during repair and fresh checks. Per-merge repair approval is independent of merge approval. A verified repair push becomes Pending; an awaiting repair approval is a nonterminal handoff.
 
-Never merge from cached state, bypass a stale-head rejection, mutate candidates concurrently, repair failing code, regenerate lockfiles, force checks to pass, dismiss reviews, change protection settings, or manually force-push a bot branch.
+In per-merge mode, when no Ready, Pending, Needs rebase, or authorized repair work remains but a PR is Awaiting merge or repair approval, report each request and hand control back to the user. Repair requests include the PR, source SHA, and proposed lockfile-only diff. Resume with a fresh classification before any mutation when the user responds.
+
+Never merge from cached state, bypass a stale-head rejection, mutate candidates concurrently, repair failing code, force checks to pass, dismiss reviews, change protection settings, or manually force-push a bot branch. Lockfile regeneration is limited to the approved extension above and `references/lockfile-repairs.md`.
 
 ## Limits and Ambiguity
 
@@ -220,7 +232,7 @@ After a timeout, lost response, or other ambiguous mutation result, reread live 
 
 ## Completion Report
 
-Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.
+Finish only after a final live candidate search. Report merged PRs with provider, final SHA, merge result, and passing evidence; repaired PRs with repair commit SHA and lockfile evidence; Clean failing PRs and their failures; Blocked PRs and exact reasons; and externally Gone PRs. Awaiting repair approval is a nonterminal handoff. Distinguish a cleared queue from a completed run that intentionally left failing or blocked PRs open.
 ```
 
 - [ ] **Step 3: Write the provider rebase reference**
@@ -309,18 +321,18 @@ Expected: validator reports the skill is valid and `git diff --check` produces n
 Run:
 
 ```bash
-wc -w merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md
+wc -w merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/references/lockfile-repairs.md
 git diff -- merging-dependency-updates
 ```
 
-Expected: only the three mapped skill files exist; the entrypoint is concise enough to scan while retaining every always-applicable safety invariant.
+Expected: only the mapped skill package files exist; the entrypoint is concise enough to scan while retaining every always-applicable safety invariant.
 
 - [ ] **Step 7: Commit the initial skill**
 
 Run:
 
 ```bash
-git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/agents/openai.yaml
+git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/references/lockfile-repairs.md merging-dependency-updates/agents/openai.yaml
 git commit -m "Add dependency update queue skill"
 ```
 
@@ -333,6 +345,7 @@ Expected: one commit containing only the new skill package.
 **Files:**
 - Modify if testing demonstrates a gap: `merging-dependency-updates/SKILL.md`
 - Modify if testing demonstrates a provider gap: `merging-dependency-updates/references/provider-rebases.md`
+- Modify if testing demonstrates a repair gap: `merging-dependency-updates/references/lockfile-repairs.md`
 - Read: `merging-dependency-updates/agents/openai.yaml`
 - Write temporarily: the Task 1 `mktemp` directory as `with-skill-*.md`
 
@@ -350,7 +363,7 @@ Use $merging-dependency-updates from the current repository to answer this scena
 
 Save complete responses as `with-skill-1.md` through `with-skill-5.md`.
 
-Expected: all five converge on approval-mode selection before preflight, correct conditional goal use, serial mutation, a live refresh before each merge, expected-head guarding, provider-specific rebases, leaving #13 open, bounded waiting, and a final live audit. Read every response; do not score by keyword alone.
+Expected: all five converge on approval-mode selection before preflight, correct conditional goal use, serial mutation, a live refresh before each merge, expected-head guarding, provider-specific rebases, evidence-gated lockfile repair and its distinct approval boundary, leaving unrelated failing PRs open, bounded waiting, and a final live audit. Read every response; do not score by keyword alone.
 
 - [ ] **Step 2: Run all three pressure scenarios with the skill**
 
@@ -361,6 +374,7 @@ Expected:
 - Pressure 1 never merges from ten-minute-old state or races mutations; it applies the selected approval mode without weakening the merge gate.
 - Pressure 2 preserves the human commit, leaves the clean failing PR open, uses Dependabot/Renovate adapters, and treats the Snyk mention as unverified.
 - Pressure 3 preserves the unrelated goal, falls back from automatic to per-merge approval before preflight, applies the 15-minute inactivity limit, rereads ambiguous mutations, and distinguishes PR-level blocked outcomes from overall goal status.
+- Lockfile scenarios repair only explicit or reproduced stale-lockfile failures without unrelated terminal failures; preserve exact-head generation, one additive commit, repair approval, remote-head race checks, stale-work discard, one attempt per manifest state, and Pending fresh-check lifecycle.
 
 - [ ] **Step 3: Patch only demonstrated failures**
 
@@ -386,7 +400,7 @@ Expected: the skill passes the approval-mode, conditional-goal, no-stale-merge, 
 If Task 3 changed repository files, run:
 
 ```bash
-git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md
+git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/references/lockfile-repairs.md
 git commit -m "Harden dependency queue workflow"
 ```
 
@@ -400,6 +414,7 @@ If no repository files changed, do not create an empty commit.
 - Review: `.context/plans-specs/2026-09-18-merging-dependency-updates-design.md`
 - Review: `merging-dependency-updates/SKILL.md`
 - Review: `merging-dependency-updates/references/provider-rebases.md`
+- Review: `merging-dependency-updates/references/lockfile-repairs.md`
 - Review: `merging-dependency-updates/agents/openai.yaml`
 
 **Interfaces:**
@@ -439,7 +454,7 @@ Expected:
 - validator reports success;
 - whitespace check is clean;
 - placeholder search returns no matches;
-- file inventory contains only `SKILL.md`, `agents/openai.yaml`, and `references/provider-rebases.md`;
+- file inventory contains only `SKILL.md`, `agents/openai.yaml`, `references/provider-rebases.md`, and `references/lockfile-repairs.md`;
 - worktree contains no unrelated edits.
 
 - [ ] **Step 4: Commit final review fixes if needed**
@@ -447,7 +462,7 @@ Expected:
 If review produced file changes, run:
 
 ```bash
-git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/agents/openai.yaml
+git add merging-dependency-updates/SKILL.md merging-dependency-updates/references/provider-rebases.md merging-dependency-updates/references/lockfile-repairs.md merging-dependency-updates/agents/openai.yaml
 git commit -m "Finalize dependency queue skill"
 ```
 
