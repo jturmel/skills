@@ -4,7 +4,7 @@ Read this reference only when at least one verified candidate is Needs rebase.
 
 ## Before Every Rebase Request
 
-Inspect commits added after the bot-generated update. If regeneration could overwrite a non-bot commit, do not invoke the bot; classify the PR Blocked and report the commits. A clean passing PR containing deliberate human follow-up commits may still merge through the normal gate.
+Inspect commits added after the bot-generated update. If regeneration could overwrite a non-bot commit, do not invoke the bot; classify the PR Blocked and report the commits. A lockfile-repair commit is a non-bot commit for this check. A clean passing PR containing deliberate human follow-up commits may still merge through the normal gate.
 
 Record provider, head SHA, conflict/staleness evidence, prior request count for that unchanged head, and the proof that would establish progress.
 

@@ -4,7 +4,7 @@
 
 Create a reusable `merging-dependency-updates` skill that processes a GitHub repository's open dependency-update pull requests from Dependabot, Renovate, and Snyk. At the start of an authorized run, the user chooses per-merge approval or automatic approval for all eligible merges. The skill then discovers, classifies, rebases, polls, and processes the queue until no actionable pull request remains.
 
-The skill leaves clean pull requests with terminal failing checks open. It does not repair their code, override their checks, or treat them as blockers to completing the queue run.
+The skill leaves clean pull requests with terminal failing checks open unless terminal-check evidence identifies a stale lockfile under the narrow repair workflow below. It never repairs application code, overrides checks, or treats clean failures as blockers to completing the queue run.
 
 ## Supported Scope
 
@@ -22,6 +22,8 @@ In per-merge mode, approval is tied to one pull request's freshly verified head 
 
 In automatic mode, the initial choice authorizes every eligible merge in the named repository for the current run without further merge prompts. It never bypasses fresh gate verification or the expected-head guard. Pause or stop revokes remaining automatic approval for that run.
 
+Automatic mode also authorizes narrowly scoped, evidence-backed lockfile repair commits for that repository and run. Per-merge mode requires separate repair-push approval tied to the PR, source head SHA, and proposed lockfile-only diff. Repair-push approval and merge approval are independent. A repair candidate qualifies only when terminal logs explicitly identify a stale, frozen, or out-of-sync lockfile, or the repository's documented locked-install/check command reproduces that failure; any unrelated terminal failure keeps the PR Clean failing.
+
 Automatic skill discovery does not itself authorize mutations. If the user asks only for an audit, status, explanation, or recommendation, the skill remains read-only. Repository scope must be unambiguous before the first comment, label change, checkbox update, or merge.
 
 The controller must stop further mutations immediately if the user asks it to pause or stop.
@@ -37,10 +39,10 @@ If goal capability is unavailable, goal creation fails, or an unrelated unfinish
 Use an objective equivalent to:
 
 ```text
-Process the verified Dependabot, Renovate, and Snyk pull-request queue for OWNER/REPOSITORY until every discovered candidate is merged, clean with terminal failing verification, blocked under the defined retry or inactivity limits, or closed or superseded externally. Preserve repository protections, do not repair failing pull requests, and validate the final live queue state.
+Process the verified Dependabot, Renovate, and Snyk pull-request queue for OWNER/REPOSITORY until every discovered candidate is merged, clean with terminal failing verification, blocked under the defined retry or inactivity limits, or closed or superseded externally. Preserve repository protections, restrict repairs to evidence-backed lockfile-only changes, and validate the final live queue state.
 ```
 
-In automatic mode, keep the goal active while candidates are Ready, Pending, or Need rebase. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
+In automatic mode, keep the goal active while candidates are Ready, Pending, Need rebase, or have authorized lockfile repair work. Complete it only after the final queue audit proves that every candidate is in a defined terminal state and the final report is ready. Follow the runtime goal tool's own blocked-status rules; an individual blocked pull request does not by itself make the overall goal blocked.
 
 Goal mode adds persistence, not authority. It does not broaden repository scope, grant new credentials, bypass approvals, or relax any merge gate.
 
@@ -85,11 +87,15 @@ Every refresh assigns each candidate to one of these states:
 | Awaiting approval | Per-merge mode, Ready gates pass, but the user has not approved this pull request at its current head SHA | Ask once; do not merge or infer approval |
 | Pending | Checks, mergeability, or bot rebase work is still in progress | Poll until the state changes or the inactivity limit is reached |
 | Needs rebase | Conflicted or otherwise stale under the repository's merge policy | Invoke the verified provider adapter, then revisit after the head changes |
-| Clean failing | Cleanly mergeable, no checks pending, and at least one test or verification check has a terminal failure | Leave open; refresh again after later merges to ensure it remains clean |
+| Lockfile repair candidate | Clean, no checks pending, and terminal logs explicitly identify a stale/frozen/out-of-sync lockfile or the documented locked-install/check command reproduces it, with no unrelated terminal failure | Read `references/lockfile-repairs.md` |
+| Awaiting repair approval | Per-merge mode and the exact-head lockfile-only repair diff is ready | Ask for separate repair-push approval tied to PR, source SHA, and diff |
+| Clean failing | Cleanly mergeable, no checks pending, and a terminal failure is ambiguous, unrelated to the lockfile, or otherwise ineligible for repair | Leave open; refresh again after later merges to ensure it remains clean |
 | Blocked | Draft, ambiguous author, missing policy evidence, insufficient permission, unsafe bot rebase, exhausted rebase attempts, or inactivity timeout | Do not merge; report the reason |
 | Gone | Closed, superseded, or merged outside the controller | Record the live outcome and remove it from the actionable queue |
 
 Neutral or skipped checks do not count as failures unless repository policy requires success from that check. Cancelled, timed-out, action-required, startup-failure, and stale conclusions count as terminal failures when they represent tests or verifications. A clean failing pull request is intentionally ignored for merging, not hidden from the final report.
+
+Ordinary or ambiguous failures remain Clean failing. A candidate qualifying for repair leaves that state only after its repair is pushed; classify it Pending until fresh checks finish. In automatic mode, keep the matching goal active during repair and fresh checks. In per-merge mode, Awaiting repair approval is a nonterminal handoff.
 
 ## Merge Gate
 
@@ -167,12 +173,13 @@ The controller processes mutations serially:
 4. Reread every gate immediately before merging and merge only with the fresh expected head SHA.
 5. Refresh the entire queue because the base branch changed.
 6. Request provider rebases for pull requests that now Need rebase.
-7. Poll Pending pull requests with lightweight workers when available.
-8. Repeat while any pull request can still become Ready.
+7. For an evidence-backed lockfile repair candidate, follow `references/lockfile-repairs.md`; keep repair and merge approvals separate and process its single normal additive push serially.
+8. Poll Pending pull requests with lightweight workers when available.
+9. Repeat while any pull request can still become Ready or has authorized repair work.
 
 A previously Clean failing pull request remains in refreshes. If a later merge makes it conflicted, it returns to Needs rebase. Once rebased, it is merged if checks pass or returns to Clean failing if they fail.
 
-In per-merge mode, when no Ready, Pending, or Needs rebase work remains but at least one pull request is Awaiting approval, the controller reports each exact-head approval request and hands control back to the user. This is a nonterminal handoff; resume with a fresh classification when the user responds.
+In per-merge mode, when no Ready, Pending, Needs rebase, or authorized repair work remains but a pull request is Awaiting merge or repair approval, the controller reports each request and hands control back to the user. A repair request includes the PR, source SHA, and proposed lockfile-only diff. This is a nonterminal handoff; resume with a fresh classification before any mutation when the user responds.
 
 For a single unchanged head, make at most three rebase requests that fail to produce progress. Avoid duplicate requests while the provider has acknowledged work or checks are running.
 
@@ -192,19 +199,26 @@ The run completes when every discovered candidate is one of:
 - If a bot acknowledges a rebase but the head has not changed, continue polling without spending another retry.
 - If permissions disappear mid-run, stop mutations and report all remaining candidates.
 - If the bot author cannot be verified, do not comment, label, or merge.
-- Do not repair code, regenerate lockfiles, force checks to pass, dismiss reviews, or change repository protection settings. Those are separate tasks requiring separate authorization.
+- Do not repair application code, force checks to pass, dismiss reviews, or change repository protection settings. Lockfile regeneration is limited to the evidence-backed, lockfile-only workflow in `references/lockfile-repairs.md`.
 
 ## Final Report Contract
 
 The final report must include:
 
 - merged pull requests with provider, final head SHA, merge result, and passing-check evidence;
+- lockfile repair commits with commit SHA and evidence, plus fresh-check outcome;
 - clean failing pull requests left open, with the failing checks;
 - blocked pull requests with exact reasons and the last observed state;
 - externally closed or superseded candidates;
 - confirmation that the final open-candidate search was reread after the last mutation.
 
 Awaiting approval produces an interim handoff, not the final report. The final report must distinguish a fully cleared queue from a completed run that intentionally left clean failing or blocked pull requests open.
+
+## Approved Lockfile-Repair Extension (2026-09-23)
+
+The repair reference is loaded only for a candidate with explicit stale-lockfile evidence or a reproduced failure from the repository's documented locked-install/check command, and only when no unrelated terminal failure exists. Regenerate at the PR's exact head in an isolated checkout using configured tooling. Accept only expected lockfiles, validate integrity and the relevant failure where supported, and allow one attempt per dependency-manifest state. Branches must accept one normal additive commit; immediately reread and match the remote source SHA before pushing, with normal fast-forward as the final race guard. A changed head discards cached repair work for live reclassification. Ambiguous evidence, broad churn, validation failure, unwritable branches, or a repeated lockfile failure block repair.
+
+This extension does not amend, rewrite, manually rebase, impersonate the bot, or force-push. The resulting non-bot repair commit is covered by the existing provider-rebase rule: do not request provider regeneration when it could overwrite that commit. The pre-edit RED evidence found 3/5 samples refused all repair due to ambiguous authorization and 2/5 inferred repair approval from automatic merge approval; attempted repairs omitted at least one separate approval, head-race check, stale-work discard, or one-attempt bound. Those five samples are the failing baseline and are not rerun.
 
 ## Skill Packaging
 
