@@ -1,12 +1,12 @@
 # Agent Skills
 
-Reusable agent skills maintained in this repository. Skills follow the [Agent Skills](https://agentskills.io) format and install with the [`skills` CLI](https://github.com/vercel-labs/skills).
+Reusable agent skills maintained in this repository. Skills follow the [Agent Skills](https://agentskills.io) format and install with the [`skills` CLI](https://github.com/vercel-labs/skills). My personal setup also includes the external sources and agents listed in [install.md](install.md).
 
 ```bash
 npx skills add jturmel/skills
 ```
 
-That command discovers the four skill directories at the repository root. The `unpushed-work` skill is nested under `git/`, so install it separately; see [install.md](install.md) for the exact command and options.
+That command discovers the four skill directories at the repository root. Three nested skills need separate installation; see [install.md](install.md) for the complete user-wide setup.
 
 ## Skills
 
@@ -17,10 +17,12 @@ That command discovers the four skill directories at the repository root. The `u
 | [setup-monorepo-django](monorepo-django/SKILL.md) | Set up a new Django project in a monorepo. |
 | [superpowers-extensions](superpowers-extensions/SKILL.md) | Keep agent-authored project specs and implementation plans in the repository's canonical `.context/` directories. |
 | [unpushed-work](git/unpushed-work/SKILL.md) | Find local branches and worktrees whose work is not safely pushed or merged. **Nested skill; install separately.** |
+| [superpowers-extensions-plans](superpowers-extensions/plans/SKILL.md) | Route executable plans to `.context/plans/`. **Nested skill; install separately.** |
+| [superpowers-extensions-plans-specs](superpowers-extensions/plans-specs/SKILL.md) | Route design specs to `.context/plans-specs/`. **Nested skill; install separately.** |
 
 ## Install and update
 
-See [install.md](install.md) for project/global installation, installing the nested skill, verification, and updates.
+See [install.md](install.md) for project and user-wide installation, the two external sources, nested skills, verification, and updates.
 
 ## Contributing
 

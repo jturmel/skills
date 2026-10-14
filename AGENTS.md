@@ -11,7 +11,7 @@ This repository contains reusable agent skills maintained directly in this repo.
 
 ## Discovery and installation
 
-The `skills` CLI discovers the four skill directories at the repository root when installing this repository. `git/unpushed-work` is nested and is not included by that discovery; install it separately using the direct skill URL documented in [install.md](install.md). Keep that distinction accurate in the README and installation guide.
+The `skills` CLI discovers the four skill directories at the repository root when installing this repository. `git/unpushed-work`, `superpowers-extensions/plans`, and `superpowers-extensions/plans-specs` are nested and are not included by that discovery; install them separately as documented in [install.md](install.md). Keep that distinction accurate in the README and installation guide. Preserve the complete user-wide inventory and the two external sources in that guide.
 
 ## Repository conventions
 
