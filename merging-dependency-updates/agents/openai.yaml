@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merging Dependency Updates"
+  short_description: "Safely clear bot dependency update queues"
+  default_prompt: "Use $merging-dependency-updates to process every eligible dependency-update pull request in this GitHub repository."
